@@ -1,0 +1,29 @@
+{
+  "name": "smart-study-platform-dev",
+  "version": "1.0.0",
+  "description": "A comprehensive platform for teachers to upload educational materials and students to access, download, and review them.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "backend": "cd backend && npm run dev",
+    "frontend": "cd my-app && npm run dev",
+    "install-all": "npm install && cd backend && npm install && cd ../my-app && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stackotools/Smart-Study-Platform.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/stackotools/Smart-Study-Platform/issues"
+  },
+  "homepage": "https://github.com/stackotools/Smart-Study-Platform#readme",
+  "dependencies": {
+    "colors": "^1.4.0"
+  }
+}
