@@ -7,8 +7,8 @@ import { TbBooks } from "react-icons/tb";
 import { IoMdSchool } from "react-icons/io";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
 
-import Header from "../components/Header";
-import Footer from "../components/Footer";
+import Header from "./Header.jsx";
+import Footer from "./Footer.jsx";
 
 import "./LandingPage.css";
 
