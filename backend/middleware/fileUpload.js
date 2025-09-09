@@ -42,8 +42,10 @@ const fileFilter = (req, file, cb) => {
   const expectedMimeType = allowedMimeTypes[fileExt];
   if (expectedMimeType && file.mimetype !== expectedMimeType) {
     // Allow some flexibility for text files and images
-    if (!file.mimetype.startsWith('text/') && fileExt === 'txt' &&
-        !file.mimetype.startsWith('image/') && ['jpg', 'jpeg', 'png'].includes(fileExt)) {
+    const isTextFile = fileExt === 'txt' && file.mimetype.startsWith('text/');
+    const isImageFile = ['jpg', 'jpeg', 'png'].includes(fileExt) && file.mimetype.startsWith('image/');
+    
+    if (!isTextFile && !isImageFile) {
       return cb(new ErrorResponse(
         `Invalid file type. Expected ${expectedMimeType} but got ${file.mimetype}`,
         400

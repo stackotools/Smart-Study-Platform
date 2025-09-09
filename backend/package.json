@@ -18,8 +18,7 @@
     "colors": "^1.4.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
-    "express": "^5.1.0",
-    "express-async-errors": "^3.1.1",
+    "express": "^4.21.2",
     "express-rate-limit": "^8.1.0",
     "express-validator": "^7.2.1",
     "fs-extra": "^11.3.1",
@@ -29,8 +28,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
-    "nodemailer": "^7.0.6",
-    "path": "^0.12.7"
+    "nodemailer": "^7.0.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

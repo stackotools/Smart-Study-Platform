@@ -39,30 +39,30 @@ const NoteSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   }],
-  // File information
+  // File information (optional - notes can exist without files)
   fileName: {
     type: String,
-    required: [true, 'File name is required']
+    default: null
   },
   originalFileName: {
     type: String,
-    required: [true, 'Original file name is required']
+    default: null
   },
   filePath: {
     type: String,
-    required: [true, 'File path is required']
+    default: null
   },
   fileSize: {
     type: Number,
-    required: [true, 'File size is required']
+    default: null
   },
   fileType: {
     type: String,
-    required: [true, 'File type is required']
+    default: null
   },
   mimeType: {
     type: String,
-    required: [true, 'MIME type is required']
+    default: null
   },
   // Cloudinary-specific fields
   cloudinaryPublicId: {

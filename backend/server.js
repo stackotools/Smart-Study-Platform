@@ -16,9 +16,6 @@ const connectDB = require('./config/database');
 // Import error handling middleware
 const { errorHandler, notFound, handleUnhandledRejections, handleUncaughtExceptions } = require('./middleware/errorHandler');
 
-// Enable express-async-errors for automatic error handling
-require('express-async-errors');
-
 // Handle uncaught exceptions and unhandled rejections
 handleUncaughtExceptions();
 handleUnhandledRejections();

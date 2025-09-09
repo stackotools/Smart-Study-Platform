@@ -86,11 +86,10 @@ const uploadNote = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(errors.array().map(err => err.msg).join(', '), 400));
   }
 
-  if (!req.file) {
-    return next(new ErrorResponse('Please upload a file', 400));
+  let fileInfo = {};
+  if (req.file) {
+    fileInfo = getFileInfo(req.file);
   }
-
-  const fileInfo = getFileInfo(req.file);
   
   const noteData = {
     ...req.body,
@@ -240,6 +239,11 @@ const downloadNote = asyncHandler(async (req, res, next) => {
 
   if (!note.isActive || !note.isPublic) {
     return next(new ErrorResponse('Note not available', 404));
+  }
+
+  // Check if note has a file
+  if (!note.filePath && !note.cloudinaryUrl) {
+    return next(new ErrorResponse('This note does not have a downloadable file', 404));
   }
 
   // Increment download count
