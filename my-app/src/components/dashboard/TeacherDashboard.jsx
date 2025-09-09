@@ -9,14 +9,14 @@ import toast from 'react-hot-toast';
 const TeacherDashboard = () => {
   const { user, logout } = useAuth();
   const { loading, execute } = useApi();
-  
+
   const [stats, setStats] = useState({
     totalNotes: 0,
     totalDownloads: 0,
     totalReviews: 0,
     averageRating: 0
   });
-  
+
   const [notes, setNotes] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadData, setUploadData] = useState({
@@ -68,12 +68,41 @@ const TeacherDashboard = () => {
     }
   };
 
+  const validateFile = (file) => {
+    if (!file) return { valid: false, error: 'Please select a file' };
+    
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return { valid: false, error: 'File too large. Maximum size is 10MB' };
+    }
+    
+    // Check file type
+    const allowedTypes = ['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'jpg', 'jpeg', 'png'];
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!allowedTypes.includes(fileExt)) {
+      return { valid: false, error: `Invalid file type. Allowed: ${allowedTypes.join(', ')}` };
+    }
+    
+    return { valid: true, error: null };
+  };
+
   const handleFileUpload = async (e) => {
     e.preventDefault();
-    
-    if (!uploadData.title || !uploadData.description || !uploadData.subject || !uploadData.file) {
-      toast.error('Please fill in all fields and select a file');
+
+    // Basic form validation
+    if (!uploadData.title || !uploadData.description || !uploadData.subject) {
+      toast.error('Please fill in all required fields');
       return;
+    }
+    
+    // File validation (only if file is provided)
+    if (uploadData.file) {
+      const fileValidation = validateFile(uploadData.file);
+      if (!fileValidation.valid) {
+        toast.error(fileValidation.error);
+        return;
+      }
     }
 
     try {
@@ -82,13 +111,17 @@ const TeacherDashboard = () => {
         formData.append('title', uploadData.title);
         formData.append('description', uploadData.description);
         formData.append('subject', uploadData.subject);
-        formData.append('file', uploadData.file);
+        
+        // Only append file if one is selected
+        if (uploadData.file) {
+          formData.append('file', uploadData.file);
+        }
 
         await notesService.uploadNote(formData);
-        
+
         setShowUploadModal(false);
         setUploadData({ title: '', description: '', subject: '', file: null });
-        
+
         // Reload data
         await loadDashboardData();
       }, {
@@ -126,18 +159,18 @@ const TeacherDashboard = () => {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {user.name}!</p>
+              <p className="text-gray-600 mt-1">Welcome back, <span className="font-semibold">{user.name}</span>!</p>
             </div>
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="bg-indigo-600 text-white px-5 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
               >
                 Upload Note
               </button>
               <button
                 onClick={logout}
-                className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
+                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-md text-sm font-medium transition"
               >
                 Logout
               </button>
@@ -146,228 +179,177 @@ const TeacherDashboard = () => {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <span className="text-2xl">📚</span>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Notes
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalNotes}
-                    </dd>
-                  </dl>
-                </div>
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {[
+            { icon: '📚', label: 'Total Notes', value: stats.totalNotes },
+            { icon: '📥', label: 'Total Downloads', value: stats.totalDownloads },
+            { icon: '💬', label: 'Total Reviews', value: stats.totalReviews },
+            { icon: '⭐', label: 'Average Rating', value: `${stats.averageRating.toFixed(1)}/5` }
+          ].map(({ icon, label, value }) => (
+            <div key={label} className="bg-white shadow rounded-lg p-5 flex items-center space-x-4">
+              <div className="text-3xl">{icon}</div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">{label}</dt>
+                <dd className="text-xl font-semibold text-gray-900">{value}</dd>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <span className="text-2xl">📥</span>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Downloads
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalDownloads}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <span className="text-2xl">💬</span>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Total Reviews
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.totalReviews}
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-5">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <span className="text-2xl">⭐</span>
-                </div>
-                <div className="ml-5 w-0 flex-1">
-                  <dl>
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      Average Rating
-                    </dt>
-                    <dd className="text-lg font-medium text-gray-900">
-                      {stats.averageRating.toFixed(1)}/5
-                    </dd>
-                  </dl>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          ))}
+        </section>
 
         {/* Notes List */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Your Notes
-            </h3>
-            
-            {loading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                <p className="text-gray-500 mt-2">Loading...</p>
-              </div>
-            ) : notes.length === 0 ? (
-              <div className="text-center py-8">
-                <span className="text-4xl mb-4 block">📝</span>
-                <p className="text-gray-500">No notes uploaded yet</p>
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+        <section className="bg-white shadow rounded-lg p-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-6">Your Notes</h3>
+
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
+              <p className="text-gray-500 mt-3">Loading...</p>
+            </div>
+          ) : notes.length === 0 ? (
+            <div className="text-center py-16">
+              <span className="text-5xl mb-5 block">📝</span>
+              <p className="text-gray-500 mb-6 text-lg">No notes uploaded yet</p>
+              <button
+                onClick={() => setShowUploadModal(true)}
+                className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition"
+              >
+                Upload Your First Note
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {notes.map((note) => (
+                <div
+                  key={note._id}
+                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition flex justify-between items-start"
                 >
-                  Upload Your First Note
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {notes.map((note) => (
-                  <div key={note._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start space-x-3">
-                        <span className="text-2xl">{getFileIcon(note.fileName || note.filename || note.originalFileName || '')}</span>
-                        <div>
-                          <h4 className="text-lg font-medium text-gray-900">{note.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{note.description}</p>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-gray-500">
-                            <span>Subject: {note.subject}</span>
-                            <span>Size: {formatFileSize(note.fileSize || 0)}</span>
-                            <span>Downloads: {note.downloadCount || 0}</span>
-                            <span>Uploaded: {formatDate(note.createdAt, { format: 'short' })}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleDeleteNote(note._id)}
-                          className="text-red-600 hover:text-red-800 px-3 py-1 text-sm font-medium"
-                        >
-                          Delete
-                        </button>
+                  <div className="flex items-start space-x-4">
+                    <span className="text-3xl">{getFileIcon(note.fileName || note.filename || note.originalFileName || '')}</span>
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900">{note.title}</h4>
+                      <p className="text-sm text-gray-600 mt-1">{note.description}</p>
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-gray-500">
+                        <span><strong>Subject:</strong> {note.subject}</span>
+                        <span><strong>Size:</strong> {formatFileSize(note.fileSize || 0)}</span>
+                        <span><strong>Downloads:</strong> {note.downloadCount || 0}</span>
+                        <span><strong>Uploaded:</strong> {formatDate(note.createdAt, { format: 'short' })}</span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+                  <div>
+                    <button
+                      onClick={() => handleDeleteNote(note._id)}
+                      className="text-red-600 hover:text-red-800 px-3 py-1 rounded-md text-sm font-medium transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </main>
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Upload New Note</h3>
-              <form onSubmit={handleFileUpload}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={uploadData.title}
-                    onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-start justify-center overflow-auto z-50">
+          <div className="relative mt-24 w-full max-w-md p-6 bg-white rounded-md shadow-lg">
+            <h3 className="text-xl font-semibold text-gray-900 mb-5">Upload New Note</h3>
+            <form onSubmit={handleFileUpload}>
+              <div className="mb-4">
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                  Title
+                </label>
+                <input
+                  id="title"
+                  type="text"
+                  value={uploadData.title}
+                  onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                />
+              </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Subject
-                  </label>
-                  <input
-                    type="text"
-                    value={uploadData.subject}
-                    onChange={(e) => setUploadData({ ...uploadData, subject: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
+              <div className="mb-4">
+                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  Subject
+                </label>
+                <input
+                  id="subject"
+                  type="text"
+                  value={uploadData.subject}
+                  onChange={(e) => setUploadData({ ...uploadData, subject: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                />
+              </div>
 
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={uploadData.description}
-                    onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
+              <div className="mb-4">
+                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  id="description"
+                  value={uploadData.description}
+                  onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  required
+                />
+              </div>
 
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    File
-                  </label>
-                  <input
-                    type="file"
-                    onChange={(e) => setUploadData({ ...uploadData, file: e.target.files[0] })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX
+              <div className="mb-6">
+                <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-1">
+                  File (Optional)
+                </label>
+                <input
+                  id="file"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                      const validation = validateFile(file);
+                      if (!validation.valid) {
+                        toast.error(validation.error);
+                        e.target.value = ''; // Clear invalid file
+                        return;
+                      }
+                    }
+                    setUploadData({ ...uploadData, file });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.jpg,.jpeg,.png"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX, JPG, PNG (Max: 10MB)
+                </p>
+                {uploadData.file && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✓ Selected: {uploadData.file.name} ({Math.round(uploadData.file.size / 1024)} KB)
                   </p>
-                </div>
+                )}
+              </div>
 
-                <div className="flex items-center justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowUploadModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                  >
-                    {loading ? 'Uploading...' : 'Upload'}
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setShowUploadModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 transition"
+                >
+                  {loading ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

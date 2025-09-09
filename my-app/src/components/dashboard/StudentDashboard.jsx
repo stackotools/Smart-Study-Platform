@@ -1,29 +1,37 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import notesService from '../../services/notesService';
 import reviewsService from '../../services/reviewsService';
 import { useApi } from '../../hooks/useApi';
 import { formatDate, formatFileSize, getFileIcon, debounce } from '../../utils/helpers';
 import toast from 'react-hot-toast';
+import '../../index.css'; // custom styles below
 
 const StudentDashboard = () => {
   const { user, logout } = useAuth();
   const { loading, execute } = useApi();
-  
+
   const [notes, setNotes] = useState([]);
   const [reviews, setReviews] = useState({});
   const [filters, setFilters] = useState({
     search: '',
     subject: '',
     sortBy: 'createdAt',
-    order: 'desc'
+    order: 'desc',
   });
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
   const [reviewData, setReviewData] = useState({
     rating: 5,
-    comment: ''
+    comment: '',
   });
+
+  const debouncedSearch = useCallback(
+    debounce((searchTerm) => {
+      setFilters((prev) => ({ ...prev, search: searchTerm }));
+    }, 300),
+    []
+  );
 
   useEffect(() => {
     loadNotes();
@@ -32,12 +40,10 @@ const StudentDashboard = () => {
   useEffect(() => {
     if (notes.length > 0) {
       loadReviews();
+    } else {
+      setReviews({});
     }
   }, [notes]);
-
-  const debouncedSearch = debounce((searchTerm) => {
-    setFilters(prev => ({ ...prev, search: searchTerm }));
-  }, 300);
 
   const loadNotes = async () => {
     try {
@@ -45,8 +51,8 @@ const StudentDashboard = () => {
         const response = await notesService.getNotes(filters);
         setNotes(response.data.notes || []);
       });
-    } catch (error) {
-      console.error('Error loading notes:', error);
+    } catch {
+      toast.error('Failed to load notes');
     }
   };
 
@@ -58,15 +64,14 @@ const StudentDashboard = () => {
           try {
             const response = await reviewsService.getReviewsForNote(note._id);
             reviewsData[note._id] = response.data?.data || response.data?.reviews || [];
-          } catch (error) {
-            console.error(`Error loading reviews for note ${note._id}:`, error);
+          } catch {
             reviewsData[note._id] = [];
           }
         })
       );
       setReviews(reviewsData);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
+    } catch {
+      toast.error('Failed to load reviews');
     }
   };
 
@@ -76,16 +81,16 @@ const StudentDashboard = () => {
         await notesService.downloadNote(note._id, note.originalFileName || note.fileName || 'download');
       }, {
         showSuccessToast: true,
-        successMessage: 'File downloaded successfully!'
+        successMessage: 'File downloaded successfully!',
       });
-    } catch (error) {
-      console.error('Download error:', error);
+    } catch {
+      toast.error('Download failed');
     }
   };
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!reviewData.comment.trim()) {
       toast.error('Please write a review comment');
       return;
@@ -94,22 +99,18 @@ const StudentDashboard = () => {
     try {
       await execute(async () => {
         await reviewsService.createReview(selectedNote._id, {
-          rating: parseInt(reviewData.rating),
-          comment: reviewData.comment.trim()
+          rating: parseInt(reviewData.rating, 10),
+          comment: reviewData.comment.trim(),
         });
-        
+
         setShowReviewModal(false);
         setSelectedNote(null);
         setReviewData({ rating: 5, comment: '' });
-        
-        // Reload reviews
         await loadReviews();
-      }, {
-        showSuccessToast: true,
-        successMessage: 'Review submitted successfully!'
+        toast.success('Review submitted successfully!');
       });
-    } catch (error) {
-      console.error('Review submit error:', error);
+    } catch {
+      toast.error('Failed to submit review');
     }
   };
 
@@ -119,95 +120,87 @@ const StudentDashboard = () => {
         await reviewsService.voteReview(reviewId, voteType);
         await loadReviews();
       });
-    } catch (error) {
-      console.error('Vote error:', error);
+    } catch {
+      toast.error('Failed to submit vote');
     }
   };
 
   const getAverageRating = (noteId) => {
     const noteReviews = reviews[noteId] || [];
     if (noteReviews.length === 0) return 0;
-    
+
     const sum = noteReviews.reduce((acc, review) => acc + review.rating, 0);
     return (sum / noteReviews.length).toFixed(1);
   };
 
   const renderStars = (rating) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <span key={i} className={i < rating ? 'text-yellow-400' : 'text-gray-300'}>
-        ⭐
-      </span>
+    return [...Array(5)].map((_, i) => (
+      <i
+        key={i}
+        className={`bi bi-star${i < rating ? '-fill' : ''} text-warning`}
+        aria-hidden="true"
+      />
     ));
   };
 
   const userHasReviewed = (noteId) => {
     const noteReviews = reviews[noteId] || [];
-    return noteReviews.some(review => (review.studentId?._id || review.student?._id) === user._id);
+    return noteReviews.some((review) => (review.studentId?._id || review.student?._id) === user._id);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Student Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {user.name}!</p>
-            </div>
-            <button
-              onClick={logout}
-              className="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Logout
-            </button>
+    <>
+      <nav className="navbar navbar-expand-lg navbar-light bg-light shadow-sm mb-4">
+        <div className="container">
+          <a className="navbar-brand" href="#">Student Dashboard</a>
+          <div className="d-flex align-items-center">
+            <span className="me-3">Welcome, <strong>{user.name}</strong></span>
+            <button onClick={logout} className="btn btn-outline-danger btn-sm">Logout</button>
           </div>
         </div>
-      </header>
+      </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <main className="container mb-5">
         {/* Filters */}
-        <div className="bg-white shadow rounded-lg mb-6">
-          <div className="px-4 py-5 sm:p-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search
-                </label>
+        <div className="card mb-4 shadow-sm">
+          <div className="card-body">
+            <form className="row g-3">
+              <div className="col-md-4">
+                <label htmlFor="search" className="form-label">Search Notes</label>
                 <input
-                  type="text"
-                  placeholder="Search notes..."
+                  id="search"
+                  type="search"
+                  className="form-control"
+                  placeholder="Search by title or description"
                   onChange={(e) => debouncedSearch(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  aria-label="Search notes"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Subject
-                </label>
+              <div className="col-md-3">
+                <label htmlFor="subject" className="form-label">Subject</label>
                 <select
+                  id="subject"
+                  className="form-select"
                   value={filters.subject}
-                  onChange={(e) => setFilters(prev => ({ ...prev, subject: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  onChange={(e) => setFilters((prev) => ({ ...prev, subject: e.target.value }))}
+                  aria-label="Filter by subject"
                 >
                   <option value="">All Subjects</option>
-                  <option value="Mathematics">Mathematics</option>
-                  <option value="Science">Science</option>
-                  <option value="English">English</option>
-                  <option value="History">History</option>
-                  <option value="Computer Science">Computer Science</option>
+                  <option>Mathematics</option>
+                  <option>Science</option>
+                  <option>English</option>
+                  <option>History</option>
+                  <option>Computer Science</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sort By
-                </label>
+              <div className="col-md-3">
+                <label htmlFor="sortBy" className="form-label">Sort By</label>
                 <select
+                  id="sortBy"
+                  className="form-select"
                   value={filters.sortBy}
-                  onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value }))}
+                  aria-label="Sort notes by"
                 >
                   <option value="createdAt">Date</option>
                   <option value="title">Title</option>
@@ -215,214 +208,215 @@ const StudentDashboard = () => {
                   <option value="downloadCount">Downloads</option>
                 </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Order
-                </label>
+              <div className="col-md-2">
+                <label htmlFor="order" className="form-label">Order</label>
                 <select
+                  id="order"
+                  className="form-select"
                   value={filters.order}
-                  onChange={(e) => setFilters(prev => ({ ...prev, order: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                  onChange={(e) => setFilters((prev) => ({ ...prev, order: e.target.value }))}
+                  aria-label="Order of notes"
                 >
                   <option value="desc">Descending</option>
                   <option value="asc">Ascending</option>
                 </select>
               </div>
-            </div>
+            </form>
           </div>
         </div>
 
-        {/* Notes Grid */}
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-5 sm:p-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-              Available Study Notes
-            </h3>
-            
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                <p className="text-gray-500 mt-2">Loading notes...</p>
-              </div>
-            ) : notes.length === 0 ? (
-              <div className="text-center py-8">
-                <span className="text-4xl mb-4 block">📚</span>
-                <p className="text-gray-500">No notes found matching your criteria</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {notes.map((note) => {
-                  const avgRating = parseFloat(getAverageRating(note._id));
-                  const noteReviews = reviews[note._id] || [];
-                  const hasReviewed = userHasReviewed(note._id);
-                  
-                  return (
-                    <div key={note._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
-                      <div className="flex items-start space-x-3 mb-3">
-                        <span className="text-3xl">{getFileIcon(note.fileName || note.filename || note.originalFileName || '')}</span>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-lg font-medium text-gray-900 truncate">{note.title}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{note.subject}</p>
+        {/* Notes list */}
+        {loading ? (
+          <div className="text-center my-5">
+            <div className="spinner-border text-primary" role="status" aria-label="Loading notes">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+          </div>
+        ) : notes.length === 0 ? (
+          <div className="text-center my-5 text-muted fs-4">
+            <i className="bi bi-journal-x"></i> No notes found.
+          </div>
+        ) : (
+          <div className="row row-cols-1 row-cols-md-3 g-4">
+            {notes.map(note => {
+              const avgRating = parseFloat(getAverageRating(note._id));
+              const noteReviews = reviews[note._id] || [];
+              const hasReviewed = userHasReviewed(note._id);
+
+              return (
+                <div key={note._id} className="col">
+                  <div className="card h-100 shadow-sm">
+                    <div className="card-body d-flex flex-column">
+                      <div className="d-flex align-items-center mb-3">
+                        <span className="fs-1 me-3">{getFileIcon(note.fileName || note.filename || note.originalFileName || '')}</span>
+                        <div>
+                          <h5 className="card-title mb-1 text-truncate" title={note.title}>{note.title}</h5>
+                          <p className="text-muted mb-0">{note.subject}</p>
                         </div>
                       </div>
-
-                      <p className="text-sm text-gray-700 mb-3 line-clamp-2">{note.description}</p>
-
-                      <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                        <span>Size: {formatFileSize(note.fileSize || 0)}</span>
-                        <span>Downloads: {note.downloadCount || 0}</span>
-                      </div>
+                      <p className="card-text flex-grow-1 text-truncate">{note.description}</p>
+                      <ul className="list-inline small text-muted mb-3">
+                        <li className="list-inline-item">Size: {formatFileSize(note.fileSize || 0)}</li>
+                        <li className="list-inline-item">Downloads: {note.downloadCount || 0}</li>
+                        <li className="list-inline-item">Uploaded by: {note.uploadedBy?.name || note.teacher?.name || 'Unknown'}</li>
+                        <li className="list-inline-item">Date: {formatDate(note.createdAt, { format: 'short' })}</li>
+                      </ul>
 
                       {/* Rating */}
-                      <div className="flex items-center space-x-2 mb-3">
-                        <div className="flex">
-                          {renderStars(Math.round(avgRating))}
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {avgRating > 0 ? `${avgRating} (${noteReviews.length} reviews)` : 'No reviews yet'}
-                        </span>
+                      <div className="mb-3">
+                        {renderStars(Math.round(avgRating))}
+                        <small className="ms-2 text-muted">
+                          {avgRating > 0 ? `${avgRating} (${noteReviews.length} review${noteReviews.length > 1 ? 's' : ''})` : 'No reviews yet'}
+                        </small>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                        <span>By: {note.uploadedBy?.name || note.teacher?.name || 'Unknown'}</span>
-                        <span>{formatDate(note.createdAt, { format: 'short' })}</span>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex space-x-2">
+                      <div className="d-flex gap-2">
                         <button
+                          className="btn btn-primary flex-grow-1"
                           onClick={() => handleDownload(note)}
-                          className="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          aria-label={`Download ${note.title}`}
                         >
-                          Download
+                          <i className="bi bi-download"></i> Download
                         </button>
                         {!hasReviewed && (
                           <button
+                            className="btn btn-success flex-grow-1"
                             onClick={() => {
                               setSelectedNote(note);
                               setShowReviewModal(true);
                             }}
-                            className="flex-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            aria-label={`Add review for ${note.title}`}
                           >
-                            Review
+                            <i className="bi bi-pencil-square"></i> Review
                           </button>
                         )}
                       </div>
 
-                      {/* Reviews Section */}
+                      {/* Reviews snippet */}
                       {noteReviews.length > 0 && (
-                        <div className="mt-4 border-t pt-4">
-                          <h5 className="text-sm font-medium text-gray-900 mb-2">Recent Reviews</h5>
-                          <div className="space-y-3 max-h-40 overflow-y-auto">
-                            {noteReviews.slice(0, 3).map((review) => (
-                              <div key={review._id} className="bg-gray-50 rounded-md p-3">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {review.studentId?.name || review.student?.name || 'Anonymous'}
-                                  </span>
-                                  <div className="flex">
-                                    {renderStars(review.rating)}
-                                  </div>
+                        <div className="mt-4 border-top pt-3 overflow-auto custom-scrollbar" style={{ maxHeight: '150px' }} aria-live="polite">
+                          <h6>Recent Reviews</h6>
+                          {noteReviews.slice(0, 3).map(review => {
+                            const helpfulCount = review.helpfulCount || 0;
+                            const totalVotes = review.totalVotes || 0;
+                            const downVotes = totalVotes - helpfulCount;
+
+                            return (
+                              <div key={review._id} className="mb-3 p-2 bg-light rounded">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                  <strong>{review.studentId?.name || review.student?.name || 'Anonymous'}</strong>
+                                  <div>{renderStars(review.rating)}</div>
                                 </div>
-                                <p className="text-sm text-gray-700 mb-2">{review.comment}</p>
-                                <div className="flex items-center justify-between text-xs text-gray-500">
+                                <p className="mb-2">{review.comment}</p>
+                                <div className="d-flex justify-content-between align-items-center text-muted small">
                                   <span>{formatDate(review.createdAt, { format: 'relative' })}</span>
-                                  <div className="flex space-x-2">
+                                  <div>
                                     <button
+                                      className="btn btn-sm btn-outline-success me-2"
                                       onClick={() => handleVoteReview(review._id, true)}
-                                      className="text-green-600 hover:text-green-800"
+                                      aria-label={`Upvote review by ${review.studentId?.name || 'Anonymous'}`}
                                     >
-                                      👍 {review.helpfulCount || 0}
+                                      👍 {helpfulCount}
                                     </button>
                                     <button
+                                      className="btn btn-sm btn-outline-danger"
                                       onClick={() => handleVoteReview(review._id, false)}
-                                      className="text-red-600 hover:text-red-800"
+                                      aria-label={`Downvote review by ${review.studentId?.name || 'Anonymous'}`}
                                     >
-                                      👎 {(review.totalVotes || 0) - (review.helpfulVotes || 0)}
+                                      👎 {downVotes}
                                     </button>
                                   </div>
                                 </div>
                               </div>
-                            ))}
-                          </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
       </main>
 
       {/* Review Modal */}
       {showReviewModal && selectedNote && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Review: {selectedNote.title}
-              </h3>
+        <div
+          className="modal show fade d-block"
+          tabIndex="-1"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reviewModalLabel"
+        >
+          <div className="modal-dialog" role="document">
+            <div className="modal-content">
               <form onSubmit={handleReviewSubmit}>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Rating
-                  </label>
-                  <select
-                    value={reviewData.rating}
-                    onChange={(e) => setReviewData({ ...reviewData, rating: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    <option value={5}>⭐⭐⭐⭐⭐ Excellent</option>
-                    <option value={4}>⭐⭐⭐⭐ Good</option>
-                    <option value={3}>⭐⭐⭐ Average</option>
-                    <option value={2}>⭐⭐ Poor</option>
-                    <option value={1}>⭐ Very Poor</option>
-                  </select>
-                </div>
-
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Comment
-                  </label>
-                  <textarea
-                    value={reviewData.comment}
-                    onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })}
-                    rows="4"
-                    placeholder="Share your thoughts about this note..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                    required
-                  />
-                </div>
-
-                <div className="flex items-center justify-end space-x-3">
+                <div className="modal-header">
+                  <h5 className="modal-title" id="reviewModalLabel">
+                    Review: {selectedNote.title}
+                  </h5>
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowReviewModal(false);
-                      setSelectedNote(null);
-                      setReviewData({ rating: 5, comment: '' });
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    className="btn-close"
+                    aria-label="Close"
+                    onClick={() => setShowReviewModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  <div className="mb-3">
+                    <label htmlFor="rating" className="form-label">
+                      Rating
+                    </label>
+                    <select
+                      id="rating"
+                      className="form-select"
+                      value={reviewData.rating}
+                      onChange={(e) => setReviewData((prev) => ({ ...prev, rating: e.target.value }))}
+                      required
+                    >
+                      {[5, 4, 3, 2, 1].map((r) => (
+                        <option key={r} value={r}>
+                          {r} Star{r > 1 ? 's' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="mb-3">
+                    <label htmlFor="comment" className="form-label">
+                      Comment
+                    </label>
+                    <textarea
+                      id="comment"
+                      className="form-control"
+                      rows="3"
+                      value={reviewData.comment}
+                      onChange={(e) => setReviewData((prev) => ({ ...prev, comment: e.target.value }))}
+                      required
+                      placeholder="Write your review here..."
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setShowReviewModal(false)}
                   >
                     Cancel
                   </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                  >
-                    {loading ? 'Submitting...' : 'Submit Review'}
+                  <button type="submit" className="btn btn-primary">
+                    Submit Review
                   </button>
                 </div>
               </form>
             </div>
           </div>
+          <div className="modal-backdrop fade show"></div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

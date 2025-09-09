@@ -84,7 +84,7 @@ function App() {
               } 
             />
             <Route path='/login' element={<LoginForm/>}></Route>
-            <Route path='/registor' element={<RegisterForm/>}></Route>
+            <Route path='/register' element={<RegisterForm/>}></Route>
             <Route 
               path="/dashboard" 
               element={
