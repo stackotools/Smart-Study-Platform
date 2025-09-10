@@ -250,18 +250,20 @@ const downloadNote = asyncHandler(async (req, res, next) => {
   await note.incrementDownload();
 
   // Check if file is stored on Cloudinary
-  if (note.cloudinaryUrl || note.filePath.includes('cloudinary.com')) {
-    // For Cloudinary files, redirect to the secure URL with download headers
+  if ((note.cloudinaryUrl || note.filePath?.includes('cloudinary.com'))) {
+    // For Cloudinary files, redirect to the secure URL with download headers.
+    // Include explicit filename to preserve extension using Cloudinary's fl_attachment:<filename>
     const downloadUrl = note.cloudinarySecureUrl || note.cloudinaryUrl || note.filePath;
-    
-    // Add download transformation to force download instead of display
-    const urlWithDownload = downloadUrl.includes('upload/') 
-      ? downloadUrl.replace('upload/', 'upload/fl_attachment/')
-      : downloadUrl;
-    
-    // Redirect to Cloudinary URL with proper headers
-    res.setHeader('Content-Disposition', `attachment; filename="${note.originalFileName}"`);
-    res.redirect(urlWithDownload);
+
+    let urlWithDownload = downloadUrl;
+    if (downloadUrl.includes('/upload/')) {
+      const encodedName = encodeURIComponent(note.originalFileName || note.fileName || 'download');
+      urlWithDownload = downloadUrl.replace('/upload/', `/upload/fl_attachment:${encodedName}/`);
+    }
+
+    res.setHeader('Content-Type', note.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${note.originalFileName || 'download'}"`);
+    return res.redirect(urlWithDownload);
   } else {
     // For local files (fallback)
     res.setHeader('Content-Disposition', `attachment; filename="${note.originalFileName}"`);

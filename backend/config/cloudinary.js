@@ -47,10 +47,10 @@ const createCloudinaryStorage = (resourceType = 'auto', folder = '') => {
       resource_type: resourceType,
       folder: folderPath,
       allowed_formats: ['pdf', 'doc', 'docx', 'txt', 'jpg', 'jpeg', 'png', 'ppt', 'pptx'],
-      transformation: [
-        // For images, we can add transformations
+      // Apply transformations only for images; keep raw documents as-is
+      transformation: resourceType === 'image' ? [
         { quality: 'auto', fetch_format: 'auto' }
-      ],
+      ] : undefined,
       public_id: (req, file) => {
         // Generate unique filename
         const timestamp = Date.now();
@@ -67,7 +67,8 @@ const createCloudinaryStorage = (resourceType = 'auto', folder = '') => {
 };
 
 // Storage configurations for different use cases
-const documentStorage = createCloudinaryStorage('auto', 'documents');
+// Use raw resource type for documents (pdf/doc/ppt) to avoid image conversion
+const documentStorage = createCloudinaryStorage('raw', 'documents');
 const imageStorage = createCloudinaryStorage('image', 'images');
 const videoStorage = createCloudinaryStorage('video', 'videos');
 

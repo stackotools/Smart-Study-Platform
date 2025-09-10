@@ -9,9 +9,16 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/auth/AuthPage';
 import TeacherDashboard from './components/dashboard/TeacherDashboard';
 import StudentDashboard from './components/dashboard/StudentDashboard';
-import LandingPage from "./components/UI/LandingPage.jsx"
-import LoginForm from './components/auth/LoginForm';
-import RegisterForm from './components/auth/RegisterForm';
+import LandingPage from './components/UI/LandingPage';
+
+// Constants
+import { TOAST_CONFIG } from './constants';
+
+// Forms
+import LoginForm from './components/forms/LoginForm';
+import RegisterForm from './components/forms/RegisterForm';
+import ForgotPassword from './components/auth/ForgotPassword';
+import NotePreview from './components/notes/NotePreview';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -74,7 +81,7 @@ function App() {
       <Router>
         <div className="App">
           <Routes>
-            <Route path='/home' element={<LandingPage/>}></Route>
+            <Route path="/home" element={<LandingPage />} />
             <Route 
               path="/auth" 
               element={
@@ -83,8 +90,30 @@ function App() {
                 </PublicRoute>
               } 
             />
-            <Route path='/login' element={<LoginForm/>}></Route>
-            <Route path='/register' element={<RegisterForm/>}></Route>
+            <Route 
+              path="/login" 
+              element={
+                <PublicRoute>
+                  <LoginForm />
+                </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                <PublicRoute>
+                  <RegisterForm />
+                </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/forgot-password" 
+              element={
+                <PublicRoute>
+                  <ForgotPassword />
+                </PublicRoute>
+              } 
+            />
             <Route 
               path="/dashboard" 
               element={
@@ -94,51 +123,20 @@ function App() {
               } 
             />
             <Route 
-              path="/teacher" 
+              path="/preview/:id" 
               element={
-                <ProtectedRoute requiredRole="teacher">
-                  <TeacherDashboard />
+                <ProtectedRoute>
+                  <NotePreview />
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/student" 
-              element={
-                <ProtectedRoute requiredRole="student">
-                  <StudentDashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="/home" replace />} />
+            <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>
         </div>
         
         {/* Toast Notifications */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              theme: {
-                primary: 'green',
-                secondary: 'black',
-              },
-            },
-            error: {
-              duration: 4000,
-              theme: {
-                primary: 'red',
-                secondary: 'black',
-              },
-            },
-          }}
-        />
+        <Toaster {...TOAST_CONFIG} />
       </Router>
     </AuthProvider>
   );

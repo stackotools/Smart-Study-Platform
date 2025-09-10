@@ -4,12 +4,15 @@ const router = express.Router();
 const {
   register,
   login,
+  forgotPassword,
+  resetPassword,
   getMe,
   updateProfile,
   changePassword,
   logout,
   validateRegister,
   validateLogin,
+  validateForgotPassword,
   validateProfileUpdate,
   validatePasswordChange
 } = require('../controllers/authController');
@@ -25,6 +28,16 @@ router.post('/register', validateRegister, register);
 // @route   POST /api/auth/login
 // @access  Public
 router.post('/login', validateLogin, login);
+
+// @desc    Forgot password (send email)
+// @route   POST /api/auth/forgot-password
+// @access  Public
+router.post('/forgot-password', validateForgotPassword, forgotPassword);
+
+// @desc    Reset password
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+router.post('/reset-password/:token', resetPassword);
 
 // @desc    Logout user
 // @route   POST /api/auth/logout

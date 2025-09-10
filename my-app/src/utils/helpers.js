@@ -1,3 +1,5 @@
+import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE } from '../constants';
+
 // Date formatting utilities
 export const formatDate = (dateString, options = {}) => {
   const date = new Date(dateString);
@@ -302,6 +304,29 @@ export const throttle = (func, limit) => {
       setTimeout(() => inThrottle = false, limit);
     }
   };
+};
+
+// File validation for uploads
+export const validateFileForUpload = (file, options = {}) => {
+  if (!file) {
+    return { valid: false, error: 'Please select a file' };
+  }
+
+  const maxSize = options.maxSizeBytes || MAX_FILE_SIZE;
+  const allowedMimes = options.allowedMimes || ALLOWED_FILE_TYPES;
+
+  if (file.size > maxSize) {
+    return { valid: false, error: 'File too large. Maximum size is 10MB' };
+  }
+
+  if (allowedMimes && allowedMimes.length > 0) {
+    const isAllowed = allowedMimes.includes(file.type);
+    if (!isAllowed) {
+      return { valid: false, error: 'Invalid file type. Please upload a supported format' };
+    }
+  }
+
+  return { valid: true, error: null };
 };
 
 export default {

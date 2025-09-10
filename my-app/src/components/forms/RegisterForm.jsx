@@ -5,7 +5,7 @@ import "../../index.css";
 import { Link, useNavigate } from "react-router-dom";
 import toast from 'react-hot-toast';
 
-const RegisterForm = ({ onSwitchToLogin }) => {
+const RegisterForm = () => {
   const { register, loading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({

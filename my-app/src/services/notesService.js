@@ -1,4 +1,5 @@
 import api, { endpoints, createFormData } from './api';
+import { validateFileForUpload } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
 class NotesService {
@@ -31,7 +32,19 @@ class NotesService {
   // Upload new note (teachers only)
   async uploadNote(noteData) {
     try {
-      const formData = createFormData(noteData, 'file');
+      // Accept either a plain object (build FormData) or a FormData instance directly
+      let formData;
+      if (noteData instanceof FormData) {
+        formData = noteData;
+      } else {
+        if (noteData?.file) {
+          const validation = validateFileForUpload(noteData.file);
+          if (!validation.valid) {
+            throw new Error(validation.error);
+          }
+        }
+        formData = createFormData(noteData, 'file');
+      }
       
       const response = await api.post(endpoints.notes.create, formData, {
         headers: {
@@ -54,7 +67,14 @@ class NotesService {
       let headers = {};
 
       // Check if there's a file to upload
-      if (noteData.file) {
+      if (noteData instanceof FormData) {
+        payload = noteData;
+        headers['Content-Type'] = 'multipart/form-data';
+      } else if (noteData.file) {
+        const validation = validateFileForUpload(noteData.file);
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
         payload = createFormData(noteData, 'file');
         headers['Content-Type'] = 'multipart/form-data';
       } else {
@@ -119,6 +139,25 @@ class NotesService {
         const filenameMatch = contentDisposition.match(/filename="(.+)"/);
         if (filenameMatch) {
           downloadFilename = filenameMatch[1];
+        }
+      }
+
+      // If filename lacks an extension, infer from content-type
+      if (!/\.[a-zA-Z0-9]+$/.test(downloadFilename)) {
+        const mime = response.headers['content-type'] || '';
+        const mimeToExt = {
+          'application/pdf': 'pdf',
+          'application/msword': 'doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+          'text/plain': 'txt',
+          'image/jpeg': 'jpg',
+          'image/png': 'png',
+          'application/vnd.ms-powerpoint': 'ppt',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx'
+        };
+        const ext = mimeToExt[mime];
+        if (ext) {
+          downloadFilename = `${downloadFilename}.${ext}`;
         }
       }
       

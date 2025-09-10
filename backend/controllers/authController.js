@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { generateTokenResponse } = require('../config/jwt');
 const ErrorResponse = require('../middleware/ErrorResponse');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -205,6 +207,92 @@ const logout = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Forgot password - create reset token and (normally) email it
+// @route   POST /api/auth/forgot-password
+// @access  Public
+const forgotPassword = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+  if (!email) {
+    return next(new ErrorResponse('Email is required', 400));
+  }
+
+  const user = await User.findOne({ email: String(email).toLowerCase() });
+  if (!user) {
+    // Respond success to avoid email enumeration
+    return res.status(200).json({ success: true, message: 'If an account exists, an email has been sent' });
+  }
+
+  // Create reset token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const hashed = crypto.createHash('sha256').update(resetToken).digest('hex');
+  user.passwordResetToken = hashed;
+  user.passwordResetExpire = Date.now() + 1000 * 60 * 15; // 15 minutes
+  await user.save({ validateBeforeSave: false });
+
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${resetToken}`;
+
+  // Send email
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
+
+    await transporter.sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to: user.email,
+      subject: 'Password Reset Instructions',
+      html: `
+        <p>Hello ${user.name},</p>
+        <p>You recently requested to reset your password. Click the link below to proceed:</p>
+        <p><a href="${resetUrl}">${resetUrl}</a></p>
+        <p>This link will expire in 15 minutes. If you did not request this, you can ignore this email.</p>
+        <p>– Smart Study Platform</p>
+      `
+    });
+
+    return res.status(200).json({ success: true, message: 'Reset link sent to email' });
+  } catch (err) {
+    // If email fails, still return reset URL for debugging
+    return res.status(200).json({ success: true, message: 'Email sending failed in dev, use resetUrl', data: { resetUrl } });
+  }
+});
+
+// @desc    Reset password using token
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+const resetPassword = asyncHandler(async (req, res, next) => {
+  const { token } = req.params;
+  const { newPassword } = req.body;
+
+  if (!token) return next(new ErrorResponse('Invalid or missing token', 400));
+  if (!newPassword || String(newPassword).length < 6) {
+    return next(new ErrorResponse('New password must be at least 6 characters long', 400));
+  }
+
+  const hashed = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await User.findOne({
+    passwordResetToken: hashed,
+    passwordResetExpire: { $gt: Date.now() }
+  }).select('+password');
+
+  if (!user) {
+    return next(new ErrorResponse('Reset token is invalid or has expired', 400));
+  }
+
+  user.password = newPassword;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpire = undefined;
+  await user.save();
+
+  res.status(200).json({ success: true, message: 'Password has been reset successfully' });
+});
+
 // Validation middleware for register
 const validateRegister = [
   body('name')
@@ -314,15 +402,26 @@ const validatePasswordChange = [
     .withMessage('New password must be at least 6 characters long')
 ];
 
+// Validation middleware for forgot password
+const validateForgotPassword = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+];
+
 module.exports = {
   register,
   login,
+  forgotPassword,
+  resetPassword,
   getMe,
   updateProfile,
   changePassword,
   logout,
   validateRegister,
   validateLogin,
+  validateForgotPassword,
   validateProfileUpdate,
   validatePasswordChange
 };

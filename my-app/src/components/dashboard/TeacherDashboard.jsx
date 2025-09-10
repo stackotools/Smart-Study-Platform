@@ -3,8 +3,9 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import notesService from '../../services/notesService';
 import reviewsService from '../../services/reviewsService';
 import { useApi } from '../../hooks/useApi.js';
-import { formatDate, formatFileSize, getFileIcon } from '../../utils/helpers.js';
+import { formatDate, formatFileSize, getFileIcon, validateFileForUpload } from '../../utils/helpers.js';
 import toast from 'react-hot-toast';
+import "./TeacherDashboard.css";
 
 const TeacherDashboard = () => {
   const { user, logout } = useAuth();
@@ -19,10 +20,12 @@ const TeacherDashboard = () => {
 
   const [notes, setNotes] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [uploadData, setUploadData] = useState({
     title: '',
     description: '',
     subject: '',
+    grade: '',
     file: null
   });
 
@@ -50,7 +53,7 @@ const TeacherDashboard = () => {
             const stat = await reviewsService.getReviewStats(note._id);
             totalReviews += stat.totalReviews || 0;
             averageRating += stat.averageRating || 0;
-          } catch (_) {}
+          } catch (_) { }
         }
         if (myNotes.length > 0) {
           averageRating = Math.round((averageRating / Math.min(myNotes.length, 10)) * 10) / 10;
@@ -68,37 +71,60 @@ const TeacherDashboard = () => {
     }
   };
 
-  const validateFile = (file) => {
-    if (!file) return { valid: false, error: 'Please select a file' };
-    
-    // Check file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      return { valid: false, error: 'File too large. Maximum size is 10MB' };
-    }
-    
-    // Check file type
-    const allowedTypes = ['pdf', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'jpg', 'jpeg', 'png'];
-    const fileExt = file.name.split('.').pop()?.toLowerCase();
-    if (!allowedTypes.includes(fileExt)) {
-      return { valid: false, error: `Invalid file type. Allowed: ${allowedTypes.join(', ')}` };
-    }
-    
-    return { valid: true, error: null };
-  };
+  // Close modals on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowUploadModal(false);
+        setShowMobileSidebar(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Close sidebar when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (showMobileSidebar && !e.target.closest('.mobile-sidebar') && !e.target.closest('.sidebar-toggle')) {
+        setShowMobileSidebar(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMobileSidebar]);
 
   const handleFileUpload = async (e) => {
     e.preventDefault();
 
-    // Basic form validation
-    if (!uploadData.title || !uploadData.description || !uploadData.subject) {
-      toast.error('Please fill in all required fields');
+    // Basic form validation aligned with backend validators
+    const title = uploadData.title?.trim();
+    const description = uploadData.description?.trim();
+    const subject = uploadData.subject?.trim();
+    const grade = uploadData.grade?.trim();
+
+    if (!title || title.length < 3 || title.length > 100) {
+      toast.error('Title must be between 3 and 100 characters');
       return;
     }
-    
+    if (!description || description.length < 10 || description.length > 1000) {
+      toast.error('Description must be between 10 and 1000 characters');
+      return;
+    }
+    if (!subject) {
+      toast.error('Subject is required');
+      return;
+    }
+    if (!grade) {
+      toast.error('Grade is required');
+      return;
+    }
+
     // File validation (only if file is provided)
     if (uploadData.file) {
-      const fileValidation = validateFile(uploadData.file);
+      const fileValidation = validateFileForUpload(uploadData.file);
       if (!fileValidation.valid) {
         toast.error(fileValidation.error);
         return;
@@ -108,10 +134,11 @@ const TeacherDashboard = () => {
     try {
       await execute(async () => {
         const formData = new FormData();
-        formData.append('title', uploadData.title);
-        formData.append('description', uploadData.description);
-        formData.append('subject', uploadData.subject);
-        
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('subject', subject);
+        formData.append('grade', grade);
+
         // Only append file if one is selected
         if (uploadData.file) {
           formData.append('file', uploadData.file);
@@ -120,7 +147,7 @@ const TeacherDashboard = () => {
         await notesService.uploadNote(formData);
 
         setShowUploadModal(false);
-        setUploadData({ title: '', description: '', subject: '', file: null });
+        setUploadData({ title: '', description: '', subject: '', grade: '', file: null });
 
         // Reload data
         await loadDashboardData();
@@ -152,97 +179,232 @@ const TeacherDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="teacher-dashboard">
       {/* Header */}
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome back, <span className="font-semibold">{user.name}</span>!</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="bg-indigo-600 text-white px-5 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition"
-              >
-                Upload Note
-              </button>
-              <button
-                onClick={logout}
-                className="text-gray-600 hover:text-gray-900 px-4 py-2 rounded-md text-sm font-medium transition"
-              >
-                Logout
-              </button>
+      <header className="dashboard-header">
+        <div className="header-container">
+          <div className="header-left">
+            {/* <button 
+              className="sidebar-toggle"
+              onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+            >
+              <i className="fas fa-bars"></i>
+            </button> */}
+            <div className="header-brand">
+              <div className="brand-icon">
+                <i className="fas fa-chalkboard-teacher"></i>
+              </div>
+              <h1 className="dashboard-title">Teacher Portal</h1>
             </div>
           </div>
+
+          <div className="header-right">
+            {/* <div className="user-info">
+              <div className="user-details">
+                <span className="user-name">{user.name}</span>
+                <span className="user-role">Educator</span>
+              </div>
+              <div className="user-avatar">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </div>
+            </div> */}
+            <button className="menu-item" onClick={logout}>
+              <i className="fas fa-sign-out-alt"></i>
+              <span>Logout</span>
+            </button>
+          </div>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setShowMobileSidebar(!showMobileSidebar)}
+          >
+            <i className="fas fa-bars"></i>
+          </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-8 sm:px-6 lg:px-8">
-        {/* Stats Cards */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {[
-            { icon: '📚', label: 'Total Notes', value: stats.totalNotes },
-            { icon: '📥', label: 'Total Downloads', value: stats.totalDownloads },
-            { icon: '💬', label: 'Total Reviews', value: stats.totalReviews },
-            { icon: '⭐', label: 'Average Rating', value: `${stats.averageRating.toFixed(1)}/5` }
-          ].map(({ icon, label, value }) => (
-            <div key={label} className="bg-white shadow rounded-lg p-5 flex items-center space-x-4">
-              <div className="text-3xl">{icon}</div>
-              <div>
-                <dt className="text-sm font-medium text-gray-500">{label}</dt>
-                <dd className="text-xl font-semibold text-gray-900">{value}</dd>
-              </div>
+      {/* Mobile Sidebar */}
+      <div className={`mobile-sidebar ${showMobileSidebar ? 'active' : ''}`}>
+        <div className="sidebar-header">
+          <div className="user-info">
+            <div className="user-avatar large">
+              {user?.name?.charAt(0).toUpperCase() || "T"}
             </div>
-          ))}
+            <div className="user-details">
+              <span className="user-name">{user.name}</span>
+              <span className="user-role">Educator</span>
+            </div>
+          </div>
+          <button
+            className="sidebar-close"
+            onClick={() => setShowMobileSidebar(false)}
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div className="sidebar-menu">
+          <div className="menu-section">
+            <h3>Dashboard</h3>
+            <button className="menu-item active">
+              <i className="fas fa-home"></i>
+              <span>Overview</span>
+            </button>
+            <button className="menu-item">
+              <i className="fas fa-analytics"></i>
+              <span>Analytics</span>
+            </button>
+          </div>
+
+          <div className="menu-section">
+            <h3>Content</h3>
+            <button className="menu-item">
+              <i className="fas fa-book"></i>
+              <span>My Materials</span>
+            </button>
+            <button
+              className="menu-item"
+              onClick={() => setShowUploadModal(true)}
+            >
+              <i className="fas fa-upload"></i>
+              <span>Upload New</span>
+            </button>
+          </div>
+
+          <div className="menu-section">
+            <h3>Account</h3>
+            <button className="menu-item">
+              <i className="fas fa-user-cog"></i>
+              <span>Profile Settings</span>
+            </button>
+            <button className="menu-item" onClick={logout}>
+              <i className="fas fa-sign-out-alt"></i>
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Overlay for mobile sidebar */}
+      {showMobileSidebar && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setShowMobileSidebar(false)}
+        ></div>
+      )}
+
+      <main className="dashboard-main">
+        {/* Stats Cards */}
+        <section className="stats-section">
+          <div className="section-header">
+            <h2 className="section-title">Dashboard Overview</h2>
+          </div>
+          <div className="stats-grid">
+            {[
+              { icon: 'fas fa-book-open', label: 'Total Notes', value: stats.totalNotes, color: 'blue' },
+              { icon: 'fas fa-download', label: 'Total Downloads', value: stats.totalDownloads, color: 'green' },
+              { icon: 'fas fa-star-half-alt', label: 'Total Reviews', value: stats.totalReviews, color: 'purple' },
+              { icon: 'fas fa-star', label: 'Average Rating', value: `${stats.averageRating.toFixed(1)}/5`, color: 'amber' }
+            ].map(({ icon, label, value, color }) => (
+              <div key={label} className={`stat-card stat-card--${color}`}>
+                <div className="stat-icon">
+                  <i className={icon}></i>
+                </div>
+                <div className="stat-content">
+                  <h3 className="stat-value">{value}</h3>
+                  <p className="stat-label">{label}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </section>
 
         {/* Notes List */}
-        <section className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-6">Your Notes</h3>
+        <section className="notes-section">
+          <div className="section-header">
+            <h2 className="section-title">Study Materials</h2>
+
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="btn btn-primary"
+            >
+              <i className="fas fa-plus"></i>
+              Add Material
+            </button>
+
+          </div>
 
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
-              <p className="text-gray-500 mt-3">Loading...</p>
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading your materials...</p>
             </div>
           ) : notes.length === 0 ? (
-            <div className="text-center py-16">
-              <span className="text-5xl mb-5 block">📝</span>
-              <p className="text-gray-500 mb-6 text-lg">No notes uploaded yet</p>
+            <div className="empty-state">
+              <div className="empty-icon">
+                <i className="fas fa-file-import"></i>
+              </div>
+              <h3>No study materials yet</h3>
+              <p>Begin by uploading your first educational resource</p>
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition"
+                className="btn btn-primary btn-center"
               >
-                Upload Your First Note
+                <i className="fas fa-cloud-upload-alt"></i>
+                Upload Your Notes
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="notes-list">
               {notes.map((note) => (
                 <div
                   key={note._id}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition flex justify-between items-start"
+                  className="note-card"
                 >
-                  <div className="flex items-start space-x-4">
-                    <span className="text-3xl">{getFileIcon(note.fileName || note.filename || note.originalFileName || '')}</span>
-                    <div>
-                      <h4 className="text-lg font-semibold text-gray-900">{note.title}</h4>
-                      <p className="text-sm text-gray-600 mt-1">{note.description}</p>
-                      <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm text-gray-500">
-                        <span><strong>Subject:</strong> {note.subject}</span>
-                        <span><strong>Size:</strong> {formatFileSize(note.fileSize || 0)}</span>
-                        <span><strong>Downloads:</strong> {note.downloadCount || 0}</span>
-                        <span><strong>Uploaded:</strong> {formatDate(note.createdAt, { format: 'short' })}</span>
+                  <div className="note-content">
+                    <div className="note-icon">
+                      {getFileIcon(note.fileName || note.filename || note.originalFileName || '')}
+                    </div>
+                    <div className="note-details">
+                      <h4 className="note-title">{note.title}</h4>
+                      <p className="note-description">{note.description}</p>
+                      <div className="note-meta">
+                        <span className="meta-tag subject">
+                          <i className="fas fa-book"></i>
+                          {note.subject}
+                        </span>
+                        <span className="meta-tag grade">
+                          <i className="fas fa-graduation-cap"></i>
+                          {note.grade}
+                        </span>
+                        <span className="meta-tag downloads">
+                          <i className="fas fa-download"></i>
+                          {note.downloadCount || 0} downloads
+                        </span>
+                        <span className="meta-tag size">
+                          <i className="fas fa-database"></i>
+                          {formatFileSize(note.fileSize || 0)}
+                        </span>
+                        <span className="meta-tag date">
+                          <i className="fas fa-calendar"></i>
+                          {formatDate(note.createdAt, { format: 'short' })}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  <div>
+                  <div className="note-actions">
+                    <a
+                      href={`#/preview/${note._id}`}
+                      className="btn btn-secondary btn-sm"
+                      title="Preview"
+                    >
+                      <i className="fas fa-eye"></i>
+                      Preview
+                    </a>
                     <button
                       onClick={() => handleDeleteNote(note._id)}
-                      className="text-red-600 hover:text-red-800 px-3 py-1 rounded-md text-sm font-medium transition"
+                      className="btn btn-danger btn-sm"
                     >
+                      <i className="fas fa-trash"></i>
                       Delete
                     </button>
                   </div>
@@ -255,98 +417,150 @@ const TeacherDashboard = () => {
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-start justify-center overflow-auto z-50">
-          <div className="relative mt-24 w-full max-w-md p-6 bg-white rounded-md shadow-lg">
-            <h3 className="text-xl font-semibold text-gray-900 mb-5">Upload New Note</h3>
-            <form onSubmit={handleFileUpload}>
-              <div className="mb-4">
-                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
+        <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                <i className="fas fa-cloud-upload-alt"></i>
+                Upload New Study Material
+              </h2>
+              <p className="modal-subtitle">Share knowledge with your students</p>
+              <button
+                className="modal-close"
+                onClick={() => setShowUploadModal(false)}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleFileUpload} className="modal-form">
+              <div className="form-group">
+                <label htmlFor="title" className="form-label">
+                  Title *
                 </label>
                 <input
                   id="title"
                   type="text"
                   value={uploadData.title}
                   onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="form-input"
+                  placeholder="Enter note title"
                   required
                 />
               </div>
 
-              <div className="mb-4">
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject
+              <div className="form-group">
+                <label htmlFor="subject" className="form-label">
+                  Subject *
                 </label>
                 <input
                   id="subject"
                   type="text"
                   value={uploadData.subject}
                   onChange={(e) => setUploadData({ ...uploadData, subject: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="form-input"
+                  placeholder="e.g. Mathematics, Physics"
                   required
                 />
               </div>
 
-              <div className="mb-4">
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
+              <div className="form-group">
+                <label htmlFor="grade" className="form-label">
+                  Grade Level *
+                </label>
+                <input
+                  id="grade"
+                  type="text"
+                  value={uploadData.grade}
+                  onChange={(e) => setUploadData({ ...uploadData, grade: e.target.value })}
+                  className="form-input"
+                  placeholder="e.g. 10th, 12th, College"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="description" className="form-label">
+                  Description *
                 </label>
                 <textarea
                   id="description"
                   value={uploadData.description}
                   onChange={(e) => setUploadData({ ...uploadData, description: e.target.value })}
                   rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="form-textarea"
+                  placeholder="Describe this study material..."
                   required
                 />
               </div>
 
-              <div className="mb-6">
-                <label htmlFor="file" className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="form-group">
+                <label htmlFor="file" className="form-label">
                   File (Optional)
                 </label>
-                <input
-                  id="file"
-                  type="file"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const validation = validateFile(file);
-                      if (!validation.valid) {
-                        toast.error(validation.error);
-                        e.target.value = ''; // Clear invalid file
-                        return;
+                <div className="file-upload">
+                  <input
+                    id="file"
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const validation = validateFileForUpload(file);
+                        if (!validation.valid) {
+                          toast.error(validation.error);
+                          e.target.value = '';
+                          return;
+                        }
                       }
-                    }
-                    setUploadData({ ...uploadData, file });
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.jpg,.jpeg,.png"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Supported formats: PDF, DOC, DOCX, TXT, PPT, PPTX, JPG, PNG (Max: 10MB)
-                </p>
-                {uploadData.file && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✓ Selected: {uploadData.file.name} ({Math.round(uploadData.file.size / 1024)} KB)
-                  </p>
-                )}
+                      setUploadData({ ...uploadData, file });
+                    }}
+                    className="file-input"
+                    accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.jpg,.jpeg,.png"
+                  />
+                  <label htmlFor="file" className="file-dropzone">
+                    <div className="file-placeholder">
+                      <i className="fas fa-cloud-upload-alt"></i>
+                      <p className="file-text">
+                        {uploadData.file ? (
+                          <span className="file-name">{uploadData.file.name}</span>
+                        ) : (
+                          <>
+                            <span>Click to upload</span> or drag and drop
+                          </>
+                        )}
+                      </p>
+                      <p className="file-hint">
+                        PDF, DOC, PPT, TXT, JPG, PNG (Max: 10MB)
+                      </p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
-              <div className="flex justify-end space-x-3">
+              <div className="form-actions">
                 <button
                   type="button"
                   onClick={() => setShowUploadModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition"
+                  className="btn btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 transition"
+                  className="btn btn-primary"
                 >
-                  {loading ? 'Uploading...' : 'Upload'}
+                  {loading ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin"></i>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-upload"></i>
+                      Upload Material
+                    </>
+                  )}
                 </button>
               </div>
             </form>

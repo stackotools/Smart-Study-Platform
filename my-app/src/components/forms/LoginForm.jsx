@@ -5,7 +5,7 @@ import "../../index.css"; // custom styles
 import { Link, useNavigate } from "react-router-dom";
 import toast from 'react-hot-toast';
 
-const LoginForm = ({ onSwitchToRegister }) => {
+const LoginForm = () => {
   const { login, loading } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -42,7 +42,7 @@ const LoginForm = ({ onSwitchToRegister }) => {
 
     try {
       const user = await login({ email: formData.email, password: formData.password });
-
+      
       // Redirect based on user role
       if (user.role === 'teacher') {
         navigate('/dashboard');
@@ -93,15 +93,9 @@ const LoginForm = ({ onSwitchToRegister }) => {
               disabled={loading}
             />
             {errors.password && <div className="error-text">{errors.password}</div>}
-          </div>
-
-          <div className="col-6 text-center mt-3">
-            <button type="button"
-              className="link-button"
-              disabled={loading}
-            >
-              <Link to={"/forgot-password"}>Forgot Password</Link>
-            </button>
+            <div className="text-end mt-2">
+              <Link to="/forgot-password" className="link-button">Forgot password?</Link>
+            </div>
           </div>
 
           <button type="submit" className="btn-custom" disabled={loading}>
@@ -115,17 +109,11 @@ const LoginForm = ({ onSwitchToRegister }) => {
             )}
           </button>
 
-          <div className="text-center mt-3 col-6">
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
-              className="link-button"
-              disabled={loading}
-            ><Link to={"/register"}>Don't have an account? Sign up</Link>
-
-            </button>
+          <div className="text-center mt-3">
+            <Link to="/register" className="link-button">
+              Don't have an account? Sign up
+            </Link>
           </div>
-
         </form>
       </div>
     </div>
