@@ -1,0 +1,3 @@
+[submodule "my-app/Smart-Study-Platform"]
+    path = my-app/Smart-Study-Platform
+    url = https://github.com/stackotools/Smart-Study-Platform.git
