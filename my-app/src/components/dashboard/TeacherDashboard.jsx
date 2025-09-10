@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import notesService from '../../services/notesService';
 import reviewsService from '../../services/reviewsService';
@@ -392,14 +393,14 @@ const TeacherDashboard = () => {
                     </div>
                   </div>
                   <div className="note-actions">
-                    <a
-                      href={`#/preview/${note._id}`}
+                    <Link
+                      to={`/preview/${note._id}`}
                       className="btn btn-secondary btn-sm"
                       title="Preview"
                     >
                       <i className="fas fa-eye"></i>
                       Preview
-                    </a>
+                    </Link>
                     <button
                       onClick={() => handleDeleteNote(note._id)}
                       className="btn btn-danger btn-sm"

@@ -38,8 +38,8 @@ router.get('/my-uploads', protect, teacherOnly, getMyUploads);
 
 // @desc    Download note file
 // @route   GET /api/notes/:id/download
-// @access  Public
-router.get('/:id/download', downloadNote);
+// @access  Public (with optional auth for tracking)
+router.get('/:id/download', optionalAuth, downloadNote);
 
 // @desc    Get single note
 // @route   GET /api/notes/:id

@@ -11,8 +11,8 @@ const NotePreview = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await notesService.getNote(id);
-        setNote(data);
+        const response = await notesService.getNote(id);
+        setNote(response.data || response);
       } catch (e) {
         toast.error('Failed to load note');
       } finally {
@@ -57,14 +57,37 @@ const NotePreview = () => {
       </div>
 
       {isPdf ? (
-        <object data={fileUrl} type="application/pdf" width="100%" height="800px">
-          <p>Preview not available. <a href={fileUrl} target="_blank" rel="noreferrer">Open PDF</a></p>
-        </object>
+        <div style={{ width: '100%', height: '800px', border: '1px solid #ddd', borderRadius: '8px' }}>
+          <iframe 
+            title="PDF Preview" 
+            src={fileUrl} 
+            width="100%" 
+            height="100%" 
+            style={{ border: 'none', borderRadius: '8px' }}
+          />
+        </div>
       ) : (
         fileUrl ? (
-          <iframe title="preview" src={fileUrl} width="100%" height="800px" />
+          <div style={{ width: '100%', height: '800px', border: '1px solid #ddd', borderRadius: '8px' }}>
+            <iframe 
+              title="File Preview" 
+              src={fileUrl} 
+              width="100%" 
+              height="100%" 
+              style={{ border: 'none', borderRadius: '8px' }}
+            />
+          </div>
         ) : (
-          <p>No file attached to this note.</p>
+          <div style={{ 
+            padding: '2rem', 
+            textAlign: 'center', 
+            border: '1px solid #ddd', 
+            borderRadius: '8px',
+            backgroundColor: '#f8f9fa'
+          }}>
+            <i className="fas fa-file" style={{ fontSize: '3rem', color: '#6c757d', marginBottom: '1rem' }}></i>
+            <p style={{ margin: 0, color: '#6c757d' }}>No file attached to this note.</p>
+          </div>
         )
       )}
     </div>

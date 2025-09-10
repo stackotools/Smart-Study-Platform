@@ -101,6 +101,7 @@
   .header-right {
     display: flex;
     align-items: center;
+    gap: 1rem;
   }
   
   .user-info {
@@ -143,6 +144,25 @@
     width: 60px;
     height: 60px;
     font-size: 1.5rem;
+  }
+  
+  .desktop-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: none;
+    color: var(--dark);
+    font-weight: 500;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: var(--transition);
+  }
+  
+  .desktop-logout:hover {
+    background: var(--light);
+    color: var(--danger);
   }
   
   /* Mobile Sidebar */
@@ -754,6 +774,10 @@
       display: none;
     }
     
+    .desktop-logout {
+      display: none; /* Hide logout button on mobile */
+    }
+    
     .stats-grid {
       grid-template-columns: 1fr;
     }
@@ -804,5 +828,11 @@
     
     .header-container {
       padding: 0 1rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .dashboard-header .menu-item {
+      display: none;
     }
   }

@@ -6,6 +6,7 @@ import {
 import { TbBooks } from "react-icons/tb";
 import { IoMdSchool } from "react-icons/io";
 import { motion, useAnimation, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 import Header from "./Header.jsx";
 import Footer from "./Footer.jsx";
@@ -15,11 +16,21 @@ import "./LandingPage.css";
 function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const controls = useAnimation();
   const featuresRef = useRef(null);
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
+  };
+
+  const handleGetStarted = () => {
+    setIsLoading(true);
+    // Simulate loading for better UX
+    setTimeout(() => {
+      navigate("/login");
+    }, 800);
   };
 
   useEffect(() => {
@@ -88,10 +99,6 @@ function LandingPage() {
         </div>
       </div>
 
-
-
-
-
       {/* Hero Section */}
       <section id="home" className="hero">
         <div className="container">
@@ -119,16 +126,23 @@ function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              <button className="btn-primary">
-                Get Started Free
-                <motion.span
-                  className="btn-hover-effect"
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ duration: 0.2 }}
-                />
-              </button>
-              <button className="btn-secondary">
-                <FaPlay className="play-icon" /> Watch Demo
+              <button 
+                className={`btn-primary ${isLoading ? 'loading' : ''}`}
+                onClick={handleGetStarted}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <div className="loading-spinner"></div>
+                ) : (
+                  <>
+                    Get Started Free
+                    <motion.span
+                      className="btn-hover-effect"
+                      whileHover={{ scale: 1.1 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  </>
+                )}
               </button>
             </motion.div>
           </div>
@@ -166,7 +180,7 @@ function LandingPage() {
             initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-100px" }}
           >
             Powerful Features for{" "}
             <span className="gradient-text">Effective Learning</span>
@@ -213,7 +227,9 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
+
+
+      {/* Stats Section
       <section className="stats">
         <div className="container">
           {[
@@ -228,14 +244,17 @@ function LandingPage() {
               initial={{ opacity: 0, y: 50 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 * (i + 1) }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
             >
               <h3>{stat.value}</h3>
               <p>{stat.label}</p>
             </motion.div>
           ))}
         </div>
-      </section>
+      </section> */}
+
+
+
 
       {/* CTA Section */}
       <section className="cta">
@@ -246,7 +265,7 @@ function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
             >
               <FaRocket className="badge-icon" />
               <span>Join Today</span>
@@ -256,7 +275,7 @@ function LandingPage() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
               className="cta-title"
             >
               Transform Your{" "}
@@ -267,7 +286,7 @@ function LandingPage() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.2 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
               className="cta-description"
             >
               Join thousands of students achieving academic excellence with
@@ -280,17 +299,23 @@ function LandingPage() {
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.4 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
             >
               <motion.button
-                className="btn-primary large"
+                className={`btn-primary large ${isLoading ? 'loading' : ''}`}
+                onClick={handleGetStarted}
+                disabled={isLoading}
                 whileHover={{
                   scale: 1.05,
                   boxShadow: "0 10px 25px rgba(99, 102, 241, 0.3)",
                 }}
                 whileTap={{ scale: 0.95 }}
               >
-                Start Learning Free
+                {isLoading ? (
+                  <div className="loading-spinner"></div>
+                ) : (
+                  "Start Learning Free"
+                )}
               </motion.button>
             </motion.div>
 
@@ -299,7 +324,7 @@ function LandingPage() {
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
               transition={{ duration: 0.7, delay: 0.6 }}
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-50px" }}
             >
               <div className="cta-feature">
                 <FaCheck className="feature-check" />
@@ -335,6 +360,7 @@ function LandingPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
+        aria-label="Back to top"
       >
         <FaArrowUp />
       </motion.button>

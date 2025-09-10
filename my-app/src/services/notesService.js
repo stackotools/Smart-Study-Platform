@@ -122,6 +122,7 @@ class NotesService {
   // Download note file
   async downloadNote(id, filename = 'download') {
     try {
+      // Now all downloads use blob response since backend streams the file
       const response = await api.get(endpoints.notes.download(id), {
         responseType: 'blob',
       });

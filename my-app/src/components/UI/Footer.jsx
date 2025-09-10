@@ -48,29 +48,29 @@ export default function Footer() {
 
           <div className="footer-section">
             <h4>Product</h4>
-            <a href="#materials">Study Materials</a>
-            <a href="#features">Features</a>
-            <a href="#">Pricing</a>
-            <a href="#">Case Studies</a>
-            <a href="#">Testimonials</a>
+            <a href="/home">Study Materials</a>
+            <a href="/home">Features</a>
+            <a href="/home">Pricing</a>
+            <a href="/home">Case Studies</a>
+            <a href="/home">Testimonials</a>
           </div>
 
           <div className="footer-section">
             <h4>Company</h4>
-            <a href="#about">About Us</a>
-            <a href="#">Careers</a>
-            <a href="#">Contact</a>
-            <a href="#">Blog</a>
-            <a href="#">Press Kit</a>
+            <a href="/home">About Us</a>
+            <a href="/home">Careers</a>
+            <a href="/home">Contact</a>
+            <a href="/home">Blog</a>
+            <a href="/home">Press Kit</a>
           </div>
 
           <div className="footer-section">
             <h4>Support</h4>
-            <a href="#">FAQ</a>
-            <a href="#">Help Center</a>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Cookie Policy</a>
+            <a href="home">FAQ</a>
+            <a href="home">Help Center</a>
+            <a href="home">Privacy Policy</a>
+            <a href="home">Terms of Service</a>
+            <a href="home">Cookie Policy</a>
           </div>
         </div>
 
@@ -78,10 +78,10 @@ export default function Footer() {
           <div className="footer-bottom-content">
             <p>&copy; {new Date().getFullYear()} SmartStudy. All rights reserved.</p>
             <div className="footer-bottom-links">
-              <a href="#">Legal</a>
-              <a href="#">Privacy</a>
-              <a href="#">Sitemap</a>
-              <a href="#">Accessibility</a>
+              <a href="home">Legal</a>
+              <a href="home">Privacy</a>
+              <a href="home">Sitemap</a>
+              <a href="home">Accessibility</a>
             </div>
           </div>
           <div className="trust-badges">

@@ -1,5 +1,6 @@
 const Note = require('../models/Note');
 const Review = require('../models/Review');
+const DownloadHistory = require('../models/DownloadHistory');
 const ErrorResponse = require('../middleware/ErrorResponse');
 const asyncHandler = require('../middleware/asyncHandler');
 const { body, validationResult, query } = require('express-validator');
@@ -57,6 +58,11 @@ const getNotes = asyncHandler(async (req, res, next) => {
 // @route   GET /api/notes/:id
 // @access  Public
 const getNote = asyncHandler(async (req, res, next) => {
+  // Validate ObjectId format
+  if (!req.params.id || !/^[0-9a-fA-F]{24}$/.test(req.params.id)) {
+    return next(new ErrorResponse('Invalid note ID format', 400));
+  }
+
   const note = await Note.findById(req.params.id)
     .populate('uploadedBy', 'name email role subject qualification');
 
@@ -231,6 +237,11 @@ const getMyUploads = asyncHandler(async (req, res, next) => {
 // @route   GET /api/notes/:id/download
 // @access  Public
 const downloadNote = asyncHandler(async (req, res, next) => {
+  // Validate ObjectId format
+  if (!req.params.id || !/^[0-9a-fA-F]{24}$/.test(req.params.id)) {
+    return next(new ErrorResponse('Invalid note ID format', 400));
+  }
+
   const note = await Note.findById(req.params.id);
 
   if (!note) {
@@ -249,21 +260,77 @@ const downloadNote = asyncHandler(async (req, res, next) => {
   // Increment download count
   await note.incrementDownload();
 
+  // Create download history record if user is authenticated and is a student
+  if (req.user && req.user.role === 'student') {
+    try {
+      await DownloadHistory.create({
+        noteId: note._id,
+        studentId: req.user._id,
+        fileName: note.originalFileName || note.fileName || 'download',
+        fileSize: note.fileSize || 0,
+        fileType: note.fileType || '',
+        noteTitle: note.title,
+        noteSubject: note.subject,
+        noteGrade: note.grade,
+        uploadedBy: note.uploadedBy
+      });
+    } catch (error) {
+      // Don't fail the download if history creation fails
+      console.error('Error creating download history:', error);
+    }
+  }
+
   // Check if file is stored on Cloudinary
   if ((note.cloudinaryUrl || note.filePath?.includes('cloudinary.com'))) {
     // For Cloudinary files, redirect to the secure URL with download headers.
-    // Include explicit filename to preserve extension using Cloudinary's fl_attachment:<filename>
     const downloadUrl = note.cloudinarySecureUrl || note.cloudinaryUrl || note.filePath;
+    const originalFileName = note.originalFileName || note.fileName || 'download';
 
-    let urlWithDownload = downloadUrl;
-    if (downloadUrl.includes('/upload/')) {
-      const encodedName = encodeURIComponent(note.originalFileName || note.fileName || 'download');
-      urlWithDownload = downloadUrl.replace('/upload/', `/upload/fl_attachment:${encodedName}/`);
+    // Set proper Content-Type based on file extension if mimeType is not available
+    let contentType = note.mimeType;
+    if (!contentType) {
+      const fileExt = originalFileName.split('.').pop()?.toLowerCase();
+      const mimeTypes = {
+        'pdf': 'application/pdf',
+        'doc': 'application/msword',
+        'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'txt': 'text/plain',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'ppt': 'application/vnd.ms-powerpoint',
+        'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      };
+      contentType = mimeTypes[fileExt] || 'application/octet-stream';
     }
-
-    res.setHeader('Content-Type', note.mimeType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${note.originalFileName || 'download'}"`);
-    return res.redirect(urlWithDownload);
+    
+    // Set headers for download
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    
+    // For Cloudinary files, we'll fetch the file and stream it instead of redirecting
+    try {
+      const https = require('https');
+      const http = require('http');
+      
+      const url = new URL(downloadUrl);
+      const client = url.protocol === 'https:' ? https : http;
+      
+      client.get(downloadUrl, (response) => {
+        // Set the same headers for the response
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+        res.setHeader('Content-Length', response.headers['content-length'] || '');
+        
+        response.pipe(res);
+      }).on('error', (err) => {
+        console.error('Error fetching file from Cloudinary:', err);
+        return next(new ErrorResponse('Error downloading file', 500));
+      });
+    } catch (error) {
+      console.error('Error setting up download:', error);
+      return next(new ErrorResponse('Error downloading file', 500));
+    }
   } else {
     // For local files (fallback)
     res.setHeader('Content-Disposition', `attachment; filename="${note.originalFileName}"`);

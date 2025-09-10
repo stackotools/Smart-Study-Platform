@@ -125,6 +125,20 @@ export const endpoints = {
     stats: (noteId) => `/reviews/stats/${noteId}`,
   },
   
+  // Download History
+  downloadHistory: {
+    list: '/download-history',
+    stats: '/download-history/stats',
+    delete: (id) => `/download-history/${id}`,
+  },
+  
+  // Analytics
+  analytics: {
+    studentProgress: '/analytics/student-progress',
+    teacherAnalytics: '/analytics/teacher-analytics',
+    platform: '/analytics/platform',
+  },
+  
   // System
   health: '/health',
   docs: '/',
